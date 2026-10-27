@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: mcp-server}
+  template:
+    metadata:
+      labels: {app: mcp-server}
+    spec:
+      containers:
+        - name: server
+          image: yklee2002/mcp-erp-server
+          ports:
+            - containerPort: 8000
+          env:
+            - {name: DB_HOST, value: mysql.default.svc.cluster.local}
+            - {name: DB_PORT, value: "3306"}
+            - name: DB_USER
+              value: stud12
+            - name: DB_PASSWORD
+              value: stud12
+            - name: DB_NAME
+              value: stud12
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+spec:
+  selector: {app: mcp-server}
+  ports:
+    - {port: 8000, targetPort: 8000}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: mcp-client}
+  template:
+    metadata:
+      labels: {app: mcp-client}
+    spec:
+      containers:
+        - name: client
+          image: yklee2002/mcp-erp-client
+          ports:
+            - containerPort: 8080
+          env:
+            - {name: MCP_URL, value: "http://mcp-server:8000/mcp"}
+            - {name: OLLAMA_URL, value: "http://ollama.default.svc.cluster.local:11434/api/chat"}
+            - {name: MODEL, value: "gemma3:12b"}
+          readinessProbe:
+            httpGet: {path: /health, port: 8080}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-client
+spec:
+  selector: {app: mcp-client}
+  ports:
+    - {port: 8080, targetPort: 8080}
